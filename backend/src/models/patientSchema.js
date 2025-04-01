@@ -44,19 +44,7 @@ const patientSchema = new mongoose.Schema({
     },
     
     appointments: [{
-        doctorId: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'Doctor',
-            required: true
-        },
-        date: {
-            type: Date,
-            required: true
-        },
-        status: {
-            type: String,
-            enum: ['Pending', 'Confirmed', 'Completed', 'Cancelled'],
-            default: 'Pending'
-        }
-    }]
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Appointment'
+    }],
 }, { timestamps: true });
