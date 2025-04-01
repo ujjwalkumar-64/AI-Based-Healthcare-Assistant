@@ -1,0 +1,35 @@
+# Node modules
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.production
+
+# Logs
+logs
+*.log
+log*.txt
+
+# Docker-related
+docker-compose.override.yml
+.DS_Store
+.dockerignore
+
+# IDE/Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build artifacts
+dist/
+build/
+coverage/
+
+# Git-related
+.git
+.gitignore
