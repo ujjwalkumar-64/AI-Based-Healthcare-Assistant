@@ -1,0 +1,44 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+ 
+
+# Logs and Debugging
+logs/
+*.log
+app.log
+debug.log
+
+ 
+
+# Ignore cache and temporary files
+.cache/
+*.bak
+*.swp
+*.swo
+.DS_Store
+
+# Python packaging
+dist/
+build/
+*.egg-info/
+
+# Ignore Pytest, Coverage & Test Reports
+.coverage
+htmlcov/
+*.cover
+nosetests.xml
+coverage.xml
+*.pytest_cache/
+
+# Ignore Docker-related files
+docker-compose.override.yml
+.dockerignore
+
+# Ignore FastAPI auto-generated files (if applicable)
+*.pid
+
+# Ignore FastAPI specific files
+*.json  
