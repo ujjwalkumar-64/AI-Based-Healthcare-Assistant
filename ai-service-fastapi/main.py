@@ -5,10 +5,28 @@ import pickle
 import pandas as pd
 import os
 import logging
+from logging.handlers import RotatingFileHandler
 
-# Initialize logging
-logging.basicConfig(level=logging.INFO)
+# Setup Logging
+log_file_path = "/app/logs/app.log"
+
+# Ensure logs directory exists
+os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
+
+# Create a handler that will rotate the log files
+handler = RotatingFileHandler(log_file_path, maxBytes=10*1024*1024, backupCount=5)  # 10MB per file
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        handler,
+        logging.StreamHandler()  # This will also print logs to stdout
+    ]
+)
+
 logger = logging.getLogger(__name__)
+
 
 # Initialize FastAPI app
 app = FastAPI()
@@ -88,17 +106,36 @@ diseases_list = {
 class SymptomsRequest(BaseModel):
     symptoms: List[str]
 
+
 def get_predicted_value(patient_symptoms: List[str]) -> str:
+    # If no symptoms are provided or the list is empty, return an error message
+    if not patient_symptoms:
+        return "Invalid symptoms provided"
+    
     try:
+        # Initialize the input vector with zeros
         input_vector = [0] * len(symptoms_dict)
+        unknown_symptoms = False
+
+        # Process the symptoms and update the vector
         for symptom in patient_symptoms:
             if symptom in symptoms_dict:
                 input_vector[symptoms_dict[symptom]] = 1
             else:
                 logger.warning(f"Unknown symptom: {symptom}")
+                unknown_symptoms = True
+
+        # If there are unknown symptoms, return the error message
+        if unknown_symptoms:
+            return "Invalid symptoms provided"
+
+        # Otherwise, make the prediction using the model
         predicted_disease = model.predict([input_vector])[0]
-        disease_name = diseases_list.get(predicted_disease, "Unknown Disease")
+        
+        # Map the predicted index to a disease name
+        disease_name = diseases_list.get(predicted_disease, "Invalid symptoms provided")
         return disease_name
+
     except Exception as e:
         logger.error(f"Error in prediction: {e}")
         raise HTTPException(status_code=500, detail=f"Prediction error: {e}")
@@ -128,7 +165,7 @@ def helper(predicted_disease):
         wrkout = wrkout_series.values.tolist() if not wrkout_series.empty else ["Consult a healthcare provider for workout recommendations"]
 
         logger.info(f"Retrieved information for disease: {predicted_disease}")
-        return desc, pre, med, die, wrkout
+        return (desc, pre, med, die, wrkout)
 
     except Exception as e:
         logger.error(f"Error retrieving information for {predicted_disease}: {e}")
@@ -169,4 +206,5 @@ def predict_disease(request: SymptomsRequest):
 
 @app.get("/")
 def root():
+    logger.info("Root endpoint accessed")
     return {"message": "Welcome to the Disease Prediction API!"}

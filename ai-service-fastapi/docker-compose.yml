@@ -8,6 +8,8 @@ services:
       - "8000:8000"
     volumes:
       - .:/app
+      - ./logs:/app/logs   
+    restart: always
     environment:
       - PYTHONUNBUFFERED=1
     networks:

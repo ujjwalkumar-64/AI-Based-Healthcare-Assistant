@@ -1,6 +1,11 @@
 fastapi
 uvicorn
-scikit-learn
-pandas
-numpy
 pydantic
+numpy
+pandas
+scikit-learn
+SQLAlchemy
+psycopg2-binary
+pytest
+httpx
+loguru
