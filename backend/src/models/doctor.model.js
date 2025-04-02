@@ -43,11 +43,16 @@ const doctorSchema = new mongoose.Schema( {
             required: true
         }
     }],
+    address:{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:"Address",
+        required:true
+    },
     rating: {
         type: Number,
         min: 1,
         max: 5,
-        default: 5
+        default: 5,
     }
 }, { timestamps: true });
 

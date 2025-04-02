@@ -17,7 +17,7 @@ const patientSchema = new mongoose.Schema({
     aiPredictions: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'AiPrediction',
-        required: false
+       
     },
     emergencyContact: {
         name: {
@@ -32,11 +32,18 @@ const patientSchema = new mongoose.Schema({
             type: String,
             required: true,
             validate(value) {
-                if (!/^\d{10}$/.test(value)) {
-                    throw new Error("Invalid phone number format. Must be 10 digits.");
+                const isValidMobilePhone = validator.isMobilePhone(value, 'any', { strictMode: false });
+                const isTenDigits = /^\d{10}$/.test(value);
+                
+                if (!isValidMobilePhone || !isTenDigits) {
+                    throw new Error("Invalid phone number format. Must be 10 digits and a valid mobile phone.");
                 }
             }
         }
+    },
+    address:{
+        type: mongoose.Schema.Types.ObjectId,
+        ref:"Address"
     },
     currentMedications: {
         type: [String],
@@ -48,3 +55,5 @@ const patientSchema = new mongoose.Schema({
         ref: 'Appointment'
     }],
 }, { timestamps: true });
+
+export const Patient = mongoose.model('Patient', patientSchema);
