@@ -8,7 +8,9 @@ services:
     depends_on:
       - mongodb
     environment:
-      - MONGO_URI=mongodb://mongodb:27017/mydatabase
+      - MONGO_URI=mongodb://mongodb:27017/healthcare
+      - JWT_SECRET= b9f7dd0453b4cfdd7139d1448cdebabb7f87dfc805b07756f7f78956d9afa693226603f816c267f47c0c93ec4abb765f3e1ae748af9420687574e8cd97de3d6715ba8efc51d56b05fd471fbcfb2c7c4ecc8aada40b8660fa7712c5174c6c8fe2149b6436d701812c7609a64049c09b9c1c04d9488ad177d62f6f407587d16c7afa5f11ea2be65516eff30930cb634f8e3851dadab656d8b8e7cca54d86b641bf326535605f347e8dade0eb5fca4496e66c00ff1aa83c7a2ed17ac4c59b728dd0f29b7bf80926efd067715cd22e832eef1b307c0d2ad946ffd98f4977339b824cd47bf769ea68cd71a7b9fa07979fe1d59a362754b36bab6c7f7745997d347959
+
     volumes:
       - .:/app  # Mounts the entire project
       - /app/node_modules  # Avoids conflicts with node_modules inside the container
@@ -21,6 +23,7 @@ services:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
+    restart: always
      
 
 volumes:
