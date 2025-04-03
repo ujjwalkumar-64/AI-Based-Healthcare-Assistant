@@ -43,7 +43,7 @@ const doctorSchema = new mongoose.Schema( {
     },
     hospitalAffiliation: {
         type: String,
-        required: true
+        required: false
     },
     availability: {
         type:[availabilitySchema],
@@ -65,7 +65,7 @@ const doctorSchema = new mongoose.Schema( {
         type: Number,
         min: 1,
         max: 5,
-        default: 3,
+       
     }
 }, { timestamps: true });
 

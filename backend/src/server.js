@@ -6,7 +6,7 @@ const PORT = 5000;
 
 // Middleware
 app.use(express.json());
-app.use(cookieParser()); // Parse cookies
+app.use(cookieParser());
 
 // Routes
 app.get('/', (req, res) => {
@@ -16,10 +16,12 @@ app.get('/', (req, res) => {
 import userRouter from './routes/user.route.js';
 import patientRouter from './routes/patient.route.js';
 import doctorRouter from './routes/doctor.route.js';
+import hospitalRouter from './routes/hospital.route.js';
 
 app.use('/api/user', userRouter);
 app.use('/api/patient', patientRouter);
 app.use("/api/doctor",doctorRouter);
+app.use("/api/hospital",hospitalRouter);
 
 
 

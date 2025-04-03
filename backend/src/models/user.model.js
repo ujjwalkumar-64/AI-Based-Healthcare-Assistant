@@ -47,9 +47,9 @@ const userSchema = new mongoose.Schema({
         required: true,
         validate(value) {
             const isValidMobilePhone = validator.isMobilePhone(value, 'any', { strictMode: false });
-            const isTenDigits = /^\d{10}$/.test(value);
+           
             
-            if (!isValidMobilePhone || !isTenDigits) {
+            if (!isValidMobilePhone ) {
                 throw new Error("Invalid phone number format. Must be 10 digits and a valid mobile phone.");
             }
         }

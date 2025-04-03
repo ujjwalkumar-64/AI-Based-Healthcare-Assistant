@@ -1,5 +1,26 @@
 import mongoose from "mongoose";
 import validator from 'validator';
+
+const departmentSchema = new mongoose.Schema({
+    name: {
+        type: String,
+        required: true,
+        unique:true,
+        trim: true,
+        lowercase:true,
+        enum: {
+            values: ['cardiology', 'dermatology', 'endocrinology', 'gastroenterology', 'neurology', 'oncology', 'pediatrics', 'psychiatry', 'radiology', 'surgery'],
+            message: '{VALUE} is not supported'
+        }
+    },
+    headDoctor: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Doctor",
+        required:true,
+        unique:true
+    },
+})
+
 const hospitalSchema = new mongoose.Schema({
     name: {
         type: String,
@@ -18,9 +39,9 @@ const hospitalSchema = new mongoose.Schema({
                 required: true,
                 validate(value) {
                     const isValidMobilePhone = validator.isMobilePhone(value, 'any', { strictMode: false });
-                    const isTenDigits = /^\d{10}$/.test(value);
+                     
                     
-                    if (!isValidMobilePhone || !isTenDigits) {
+                    if (!isValidMobilePhone  ) {
                         throw new Error("Invalid phone number format. Must be 10 digits and a valid mobile phone.");
                     }
                 }
@@ -30,6 +51,7 @@ const hospitalSchema = new mongoose.Schema({
                 required:true,
                 trim:true,
                 index:true,
+                unique:true,
                 validate(value){
                     if(!validator.isEmail(value)){
                         throw new Error("Invalid email address");
@@ -56,17 +78,35 @@ const hospitalSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "Doctor",
     }],
-    departments: [{
-        name: {
-            type: String,
-            required: true,
-            trim: true,
+    departments:{
+        type:[departmentSchema],
+        required:true,
+        validate: {
+            validator: function (value) {
+ 
+                return value.length > 0 && value.every(slot => slot.name && slot.headDoctor );
+            },
+            message: 'Each availability slot must include name and headDoctor, and the array cannot be empty.',
         },
-        headDoctor: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Doctor",
-        },
-    }],
+    },
 }, { timestamps: true });
+
+hospitalSchema.pre('save', function (next) {
+    
+    const departmentNames = this.departments.map(department => department.name);
+    const headDoctors = this.departments.map(department => department.headDoctor.toString());
+
+     
+    if (new Set(departmentNames).size !== departmentNames.length) {
+        return next(new Error("Duplicate department names are not allowed within the same hospital."));
+    }
+
+    if (new Set(headDoctors).size !== headDoctors.length) {
+        return next(new Error("A doctor cannot be the head of multiple departments within the same hospital."));
+    }
+
+    next();
+});
+
 
 export const Hospital = mongoose.model("Hospital", hospitalSchema);

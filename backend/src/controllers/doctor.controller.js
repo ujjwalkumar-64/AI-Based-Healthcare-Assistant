@@ -1,11 +1,11 @@
 import mongoose from 'mongoose';
 import { Doctor } from "../models/doctor.model.js";
 import { Address } from "../models/address.model.js";
-
+import { Hospital } from '../models/hospital.model.js';
 
 const registerDoctor = async (req, res) => {
     try {
-        const { specialization, medicalLicense, experienceYears, hospitalAffiliation, availability, address } = req.body;
+        const { specialization, medicalLicense, experienceYears, hospitalId , availability, address } = req.body;
         const userId = req.user._id; 
 
         const existingDoctor = await Doctor.findOne({ userId });
@@ -22,16 +22,44 @@ const registerDoctor = async (req, res) => {
             addressId = newAddress._id;
         }
 
+                 
+        let hospital = null;
+        if (hospitalId) {
+            hospital = await Hospital.findById(hospitalId);
+            if (!hospital) {
+                return res.status(404).json({ message: "Hospital not found" });
+            }
+        }
+
+                
         const doctor = new Doctor({
             userId,
             specialization,
             medicalLicense,
             experienceYears,
-            hospitalAffiliation,
+            hospitalAffiliation: hospital ? hospital.name : null,
             availability,
             address: addressId,
         });
-        const newDoctor = await doctor.save();
+
+      
+           const newDoctor = await doctor.save();
+           // If the doctor is a department head, update the hospital model
+           if (hospital) {
+               hospital.doctors.push(newDoctor._id);
+   
+               // Check if doctor is assigned as a department head
+               hospital.departments.forEach((department) => {
+                   if (department.headDoctor.toString() === newDoctor._id.toString()) {
+                        newDoctor.hospitalAffiliation = hospital.name;
+                   }
+               });
+   
+               await hospital.save();
+               await newDoctor.save();
+           }
+
+     
 
         res.status(201).json({message: "Doctor registered successfully",data:newDoctor});
     } catch (error) {
@@ -88,7 +116,7 @@ const getMyDoctorProfile = async (req, res) => {
 
   const updateDoctor = async (req, res) => {
     try {
-        const { specialization, medicalLicense, experienceYears, hospitalAffiliation, availability, address,rating } = req.body;
+        const { specialization, medicalLicense, experienceYears, availability, address,rating } = req.body;
         
         if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
             return res.status(400).json({ message: "Invalid doctor ID." });
@@ -115,7 +143,7 @@ const getMyDoctorProfile = async (req, res) => {
             } 
         }
 
-        const fieldsToUpdate = { specialization, medicalLicense, experienceYears, hospitalAffiliation, availability };
+        const fieldsToUpdate = { specialization, medicalLicense, experienceYears, availability };
         for (const [key, value] of Object.entries(fieldsToUpdate)) {
             if (value !== undefined) doctor[key] = value;
         }
