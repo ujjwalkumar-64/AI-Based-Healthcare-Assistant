@@ -1,5 +1,22 @@
 import mongoose from 'mongoose';
 
+const availabilitySchema = new mongoose.Schema({
+    day: {
+        type: String,
+        enum: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
+        required: true,
+        lowercase:true
+    },
+    startTime: {
+        type: String,
+        required: true
+    },
+    endTime: {
+        type: String,
+        required: true
+    }
+});
+
 const doctorSchema = new mongoose.Schema( {
     userId:{
         type:mongoose.Schema.Types.ObjectId,
@@ -12,7 +29,7 @@ const doctorSchema = new mongoose.Schema( {
         trim: true,
         lowercase: true,
         enum: {
-            values: ['Cardiology', 'Dermatology', 'Endocrinology', 'Gastroenterology', 'Neurology', 'Oncology', 'Pediatrics', 'Psychiatry', 'Radiology', 'Surgery'],
+            values: ['cardiology', 'dermatology', 'endocrinology', 'gastroenterology', 'neurology', 'oncology', 'pediatrics', 'psychiatry', 'radiology', 'surgery'],
             message: '{VALUE} is not supported'
         }
     },
@@ -28,21 +45,17 @@ const doctorSchema = new mongoose.Schema( {
         type: String,
         required: true
     },
-    availability: [{
-        day: {
-            type: String,
-            enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
-            required: true
+    availability: {
+        type:[availabilitySchema],
+        required:true,
+        validate: {
+            validator: function (value) {
+ 
+                return value.length > 0 && value.every(slot => slot.day && slot.startTime && slot.endTime);
+            },
+            message: 'Each availability slot must include day, startTime, and endTime, and the array cannot be empty.',
         },
-        startTime: {
-            type: String,
-            required: true
-        },
-        endTime: {
-            type: String,
-            required: true
-        }
-    }],
+    },
     address:{
         type:mongoose.Schema.Types.ObjectId,
         ref:"Address",
@@ -52,7 +65,7 @@ const doctorSchema = new mongoose.Schema( {
         type: Number,
         min: 1,
         max: 5,
-        default: 5,
+        default: 3,
     }
 }, { timestamps: true });
 

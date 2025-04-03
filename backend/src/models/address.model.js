@@ -34,3 +34,5 @@ const addressSchema = new mongoose.Schema({
 });
 
 export const Address = mongoose.model("Address", addressSchema);
+
+// todo : user link

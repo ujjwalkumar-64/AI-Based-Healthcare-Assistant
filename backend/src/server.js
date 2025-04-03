@@ -15,8 +15,14 @@ app.get('/', (req, res) => {
 
 import userRouter from './routes/user.route.js';
 import patientRouter from './routes/patient.route.js';
+import doctorRouter from './routes/doctor.route.js';
+
 app.use('/api/user', userRouter);
 app.use('/api/patient', patientRouter);
+app.use("/api/doctor",doctorRouter);
+
+
+
 try {
     await mongoDB();
     app.listen(PORT, () => {
