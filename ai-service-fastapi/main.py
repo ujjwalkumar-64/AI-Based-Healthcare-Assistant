@@ -5,6 +5,9 @@ import pickle
 import pandas as pd
 import os
 import logging
+from fastapi.middleware.cors import CORSMiddleware
+import math
+
 from logging.handlers import RotatingFileHandler
 
 # Setup Logging
@@ -30,6 +33,14 @@ logger = logging.getLogger(__name__)
 
 # Initialize FastAPI app
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Replace "*" with specific origins if needed
+    allow_methods=["*"],
+    allow_headers=["*"],
+     allow_credentials=True,
+)
 
 # Load the trained model
 try:
@@ -140,6 +151,9 @@ def get_predicted_value(patient_symptoms: List[str]) -> str:
         logger.error(f"Error in prediction: {e}")
         raise HTTPException(status_code=500, detail=f"Prediction error: {e}")
 
+def clean_list(lst):
+    return [x if isinstance(x, str) else str(x) if x is not None and not (isinstance(x, float) and (math.isnan(x) or math.isinf(x))) else "Data not available" for x in lst]
+
 def helper(predicted_disease):
     try:
         # Retrieve description
@@ -149,20 +163,22 @@ def helper(predicted_disease):
         # Retrieve precautions
         pre_df = precautions[precautions['Disease'] == predicted_disease][['Precaution_1', 'Precaution_2', 'Precaution_3', 'Precaution_4']]
         pre = pre_df.values.flatten().tolist() if not pre_df.empty else ["Consult a healthcare provider for precautions"]
+        pre = clean_list(pre)
 
         # Retrieve medications
         med_series = medications[medications['Disease'] == predicted_disease]['Medication']
-        med = [med.strip("[]").replace("'", "").split(", ") for med in med_series.values] if not med_series.empty else ["Consult a healthcare provider for medications"]
-        med = med[0] if med else ["Consult a healthcare provider for medications"]
+        med = [med.strip("[]").replace("'", "").split(", ") for med in med_series.values] if not med_series.empty else [["Consult a healthcare provider for medications"]]
+        med = clean_list(med[0] if med else ["Consult a healthcare provider for medications"])
 
         # Retrieve diet recommendations
         die_series = diets[diets['Disease'] == predicted_disease]['Diet']
-        die = [die.strip("[]").replace("'", "").split(", ") for die in die_series.values] if not die_series.empty else ["Consult a healthcare provider for diet recommendations"]
-        die = die[0] if die else ["Consult a healthcare provider for diet recommendations"]
+        die = [die.strip("[]").replace("'", "").split(", ") for die in die_series.values] if not die_series.empty else [["Consult a healthcare provider for diet recommendations"]]
+        die = clean_list(die[0] if die else ["Consult a healthcare provider for diet recommendations"])
 
         # Retrieve workout recommendations
         wrkout_series = workout[workout['disease'] == predicted_disease]['workout']
         wrkout = wrkout_series.values.tolist() if not wrkout_series.empty else ["Consult a healthcare provider for workout recommendations"]
+        wrkout = clean_list(wrkout)
 
         logger.info(f"Retrieved information for disease: {predicted_disease}")
         return (desc, pre, med, die, wrkout)
