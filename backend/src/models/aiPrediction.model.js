@@ -1,6 +1,12 @@
 import mongoose from 'mongoose';
+import { Patient } from './patient.model.js';
 
 const aiPredictionSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
     predicted_disease: {
         type: String,
         required: true
@@ -28,5 +34,9 @@ const aiPredictionSchema = new mongoose.Schema({
 }, {
     timestamps: true
 });
+
+
+
+
 
  export const AiPrediction = mongoose.model('AiPrediction', aiPredictionSchema);

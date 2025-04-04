@@ -40,7 +40,11 @@ import mongoose from 'mongoose';
             notes
         });
 
-        patient.appointments.push(newAppointment._id);
+        
+        if (!patient.appointments.includes(newAppointment._id)) {
+            patient.appointments.push(newAppointment._id);
+            await patient.save();
+        }
         await patient.save();
  
 

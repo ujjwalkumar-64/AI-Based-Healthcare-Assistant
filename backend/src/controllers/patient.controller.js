@@ -7,11 +7,13 @@ import { Address } from "../models/address.model.js";
     try {
         const {  medicalHistory, allergies, emergencyContact, address, currentMedications } = req.body;
 
-        const user = req.user;
-        if (!user ) {
-            return res.status(400).json({ message: "Invalid user" });
-        }
 
+        const user = req.user; 
+
+        const existingPatient = await Patient.findOne({ userId: user._id });
+        if (existingPatient) {
+            return res.status(400).json({ message: "Patient is already registered." });
+        }
         let addressId = null;
         if (address) {
             const newAddress = await Address.create(address);
