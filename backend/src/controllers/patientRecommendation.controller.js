@@ -1,84 +1,111 @@
-import { Address } from '../models/addressModel.js';
-import { Hospital } from '../models/hospitalModel.js';
-import { Patient } from '../models/patientModel.js';
+import { Address } from '../models/address.model.js';
+import {Department} from '../models/department.model.js';
+import {diseaseDepartmentMapping} from "../utils/diseaseDepartmentMapping.js";
 
-// Helper to get disease-related department
-const getDepartmentFromDisease = (disease) => {
-  // You can replace this with a better mapping if needed
-  const mapping = {
-    cardiology: ['heart attack', 'high blood pressure', 'chest pain'],
-    dermatology: ['rash', 'acne', 'eczema'],
-    neurology: ['headache', 'seizure', 'stroke'],
-    pediatrics: ['fever', 'cold', 'cough'],
-    // ... add more
-  };
-
-  for (const [dept, diseases] of Object.entries(mapping)) {
-    if (diseases.includes(disease.toLowerCase())) {
-      return dept;
-    }
-  }
-  return null;
-};
-
-export const getNearbyHospitalsAndDoctors = async (req, res) => {
+const getDepartmentsByDisease = async (req, res) => {
   try {
-    const userId = req.user._id;
-    const patient = await Patient.findOne({ userId }).populate('address');
-
-    if (!patient || !patient.address || !patient.address.location) {
-      return res.status(400).json({ message: 'Patient address with geolocation is required.' });
-    }
-
-    const disease = req.query.disease;
+    const { disease } = req.params;
     if (!disease) {
-      return res.status(400).json({ message: 'Disease query param is required.' });
+      return res.status(400).json({ message: "Disease name is required" });
     }
 
-    const department = getDepartmentFromDisease(disease);
-    if (!department) {
-      return res.status(404).json({ message: 'No department found for the given disease.' });
-    }
+    const normalizedDisease = disease.trim().toLowerCase();
+    const matchedDepartments = [];
 
-    const userCoords = patient.address.location.coordinates; // [lng, lat]
-
-    // Find hospital addresses near user
-    const nearbyHospitalAddresses = await Address.find({
-      location: {
-        $near: {
-          $geometry: { type: "Point", coordinates: userCoords },
-          $maxDistance: 10000 // 10km range
-        }
-      },
-      hospitalId: { $exists: true }
-    }).populate('hospitalId');
-
-    const matchingHospitals = [];
-
-    for (const addr of nearbyHospitalAddresses) {
-      const hospital = await Hospital.findById(addr.hospitalId._id).populate('doctors');
-
-      const matchingDept = hospital.departments.find(dep => dep.name === department);
-
-      if (matchingDept) {
-        matchingHospitals.push({
-          hospitalName: hospital.name,
-          hospitalType: hospital.type,
-          contact: hospital.contact,
-          address: addr,
-          department: matchingDept.name,
-          headDoctor: matchingDept.headDoctor
-        });
+    for (const [department, diseases] of Object.entries(diseaseDepartmentMapping)) {
+      if (diseases.some(d => d.toLowerCase() === normalizedDisease)) {
+        matchedDepartments.push(department);
       }
     }
 
+    if (matchedDepartments.length === 0) {
+      return res.status(404).json({ message: "No departments found for the given disease" });
+    }
+
     res.status(200).json({
-      success: true,
-      message: `Nearby hospitals and doctors in ${department} department`,
-      hospitals: matchingHospitals
+      message: "Departments found",
+      data: matchedDepartments
     });
+
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ message: error.message });
   }
 };
+
+
+
+const getNearbyDoctorsAndHospitalsByDisease = async (req, res) => {
+  try {
+    const { disease } = req.params;
+    const { lat, lng } = req.query;
+
+    if (!disease || !lat || !lng) {
+      return res.status(400).json({ message: "Disease, latitude, and longitude are required." });
+    }
+
+    const normalizedDisease = disease.trim().toLowerCase();
+    const matchedDepartments = [];
+
+    for (const [department, diseases] of Object.entries(diseaseDepartmentMapping)) {
+      if (diseases.some(d => d.toLowerCase() === normalizedDisease)) {
+        matchedDepartments.push(department);
+      }
+    }
+
+    if (matchedDepartments.length === 0) {
+      return res.status(404).json({ message: "No departments found for the given disease." });
+    }
+
+     // nearby hospitals within 10km
+    const nearbyAddresses = await Address.find({
+      location: {
+        $near: {
+          $geometry: { type: "Point", coordinates: [parseFloat(lng), parseFloat(lat)] },
+          $maxDistance: 10000 // 10 km
+        }
+      },
+      hospitalId: { $ne: null }
+    }).populate("hospitalId");
+
+    const hospitalIds = nearbyAddresses.map(addr => addr.hospitalId._id);
+
+    // Step 3: Get departments from these hospitals that match
+    const departments = await Department.find({
+      name: { $in: matchedDepartments },
+      hospital: { $in: hospitalIds }
+    }).populate({
+      path: "doctors",
+      populate: {
+        path: "userId",
+        select: "fullName email"
+      }
+    });
+
+    res.status(200).json({
+      message: "Nearby hospitals and doctors found for the given disease",
+      matchedDepartments,
+      hospitals: nearbyAddresses.map(addr => ({
+        hospital: addr.hospitalId,
+        address: addr
+      })),
+      departments: departments.map(dep => ({
+        name: dep.name,
+        hospital: dep.hospital,
+        doctors: dep.doctors
+      }))
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+
+export {  
+          getDepartmentsByDisease ,
+          getNearbyDoctorsAndHospitalsByDisease  
+      };
+
+

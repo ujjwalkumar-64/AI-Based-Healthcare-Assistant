@@ -29,7 +29,7 @@ const doctorSchema = new mongoose.Schema( {
         trim: true,
         lowercase: true,
         enum: {
-            values: ['cardiology', 'dermatology', 'endocrinology', 'gastroenterology', 'neurology', 'oncology', 'pediatrics', 'psychiatry', 'radiology', 'surgery'],
+            values: ['cardiology', 'dermatology', 'endocrinology', 'gastroenterology', 'neurology', 'oncology', 'pediatrics',  'surgery'],
             message: '{VALUE} is not supported'
         }
     },
@@ -66,7 +66,19 @@ const doctorSchema = new mongoose.Schema( {
         min: 1,
         max: 5,
        
-    }
+    },
+    patients: [
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Patient'
+        }
+    ],
+    appointments: [
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Appointment'
+        }
+    ]
 }, { timestamps: true });
 
 export const Doctor = mongoose.model('Doctor', doctorSchema);

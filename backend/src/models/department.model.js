@@ -7,7 +7,7 @@ const departmentSchema = new mongoose.Schema({
         trim: true,
         lowercase:true,
         enum: {
-            values: ['cardiology', 'dermatology', 'endocrinology', 'gastroenterology', 'neurology', 'oncology', 'pediatrics', 'psychiatry', 'radiology', 'surgery'],
+            values: ['cardiology', 'dermatology', 'endocrinology', 'gastroenterology', 'neurology', 'oncology', 'pediatrics', 'surgery'],
             message: '{VALUE} is not supported'
         }
     },

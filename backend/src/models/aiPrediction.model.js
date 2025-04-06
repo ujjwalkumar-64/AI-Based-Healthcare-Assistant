@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import { Patient } from './patient.model.js';
 
 const aiPredictionSchema = new mongoose.Schema({
     userId: {

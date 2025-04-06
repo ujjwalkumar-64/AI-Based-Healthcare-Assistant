@@ -64,6 +64,10 @@ const hospitalSchema = new mongoose.Schema({
         ref:"Department",
         required:true,
     },
+    patients:{
+        type:[mongoose.Schema.Types.ObjectId],
+        ref:"Patient",
+    }
 }, { timestamps: true });
 
 

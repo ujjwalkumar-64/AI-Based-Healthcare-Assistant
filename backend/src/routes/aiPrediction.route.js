@@ -11,6 +11,7 @@ import {createAiPrediction,
 const aiPredictionRouter = Router();
 
 aiPredictionRouter.post('/register-prediction',authUser,createAiPrediction);
+
 aiPredictionRouter.get('/all-predictions',authUser,authorizeRole(["admin","doctor"]),getAllAiPredictions);
 aiPredictionRouter.delete('/delete-prediction/:id',authUser,authorizeRole(["admin"]),deleteAiPrediction);
 aiPredictionRouter.get('/:id',authUser,authorizeRole(["admin","doctor"]),getAiPredictionById);

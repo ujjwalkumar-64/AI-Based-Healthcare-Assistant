@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import validator from "validator";
+
 const addressSchema = new mongoose.Schema({
     doctorId: {
         type: mongoose.Schema.Types.ObjectId, 

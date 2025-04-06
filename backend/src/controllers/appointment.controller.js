@@ -45,8 +45,11 @@ import mongoose from 'mongoose';
             patient.appointments.push(newAppointment._id);
             await patient.save();
         }
-        await patient.save();
- 
+        if(!doctor.appointments.includes(newAppointment._id)) {
+            doctor.appointments.push(newAppointment._id);
+            await doctor.save();
+        }
+
 
         res.status(201).json({ message: "Appointment created successfully.", data: newAppointment });
     } catch (error) {
@@ -86,7 +89,7 @@ const getAllAppointments = async (req, res) => {
 
 const getMyAppointments = async (req, res) => {
     try {
-        const userId = req.user._id;  
+        const userId = req.user._id; 
 
         if (!mongoose.Types.ObjectId.isValid(userId)) {
             return res.status(400).json({ message: `Invalid userId.` });
@@ -164,6 +167,35 @@ const updateAppointmentStatus = async (req, res) => {
         appointment.status = status;
         await appointment.save();
 
+        if(status === 'completed') {
+            const doctor = await Doctor.findById(appointment.doctorId);
+            if (!doctor) return res.status(404).json({ message: "Doctor not found." });
+            doctor.appointments = doctor.appointments.filter(app => app.toString() !== appointment._id.toString());
+            
+            if(!doctor.patients.includes(appointment.patientId)) {
+                doctor.patients.push(appointment.patientId);
+                
+            }
+            const patient = await Patient.findById(appointment.patientId);
+            if (!patient) return res.status(404).json({ message: "Patient not found." });
+            patient.appointments = patient.appointments.filter(app => app.toString() !== appointment._id.toString());
+
+            await patient.save();
+            await doctor.save();
+        }
+        if(status === 'cancelled') {
+            const doctor = await Doctor.findById(appointment.doctorId);
+            if (!doctor) return res.status(404).json({ message: "Doctor not found." });
+            doctor.appointments = doctor.appointments.filter(app => app.toString() !== appointment._id.toString());
+            
+            const patient = await Patient.findById(appointment.patientId);
+            if (!patient) return res.status(404).json({ message: "Patient not found." });
+            patient.appointments = patient.appointments.filter(app => app.toString() !== appointment._id.toString());
+
+            await patient.save();
+            await doctor.save();
+        }
+
         res.status(200).json({ message: "Appointment status updated.", appointment });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -178,6 +210,11 @@ const deleteAppointment = async (req, res) => {
 
         await Patient.findOneAndUpdate(
             { _id: appointment.patientId },
+            { $pull: { appointments: appointment._id } }
+        );
+
+        await Doctor.findOneAndUpdate(
+            { _id: appointment.doctorId },
             { $pull: { appointments: appointment._id } }
         );
 

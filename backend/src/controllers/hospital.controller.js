@@ -2,6 +2,8 @@ import { Hospital } from "../models/hospital.model.js";
 import { Address } from "../models/address.model.js";
 import { Doctor } from "../models/doctor.model.js";
 import { Department } from "../models/department.model.js";
+import {Appointment} from "../models/appointment.model.js";
+import { Patient } from "../models/patient.model.js";
 import mongoose from 'mongoose';
 
   const createHospital = async (req, res) => {
@@ -190,61 +192,59 @@ const updateHospital = async (req, res) => {
         const { contact, address, departments } = req.body;
 
         const hospital = await Hospital.findById(hospitalId);
-
         if (!hospital) {
-            return res.status(404).json({ message: "Hospital not found" });
+            return res.status(404).json({ message: "Hospital not found." });
         }
 
- 
         if (address) {
             if (hospital.address) {
                 const updatedAddress = await Address.findByIdAndUpdate(hospital.address, address, { new: true });
                 if (!updatedAddress) {
-                    return res.status(400).json({ message: "Invalid address update." });
+                    return res.status(400).json({ message: "Address update failed." });
                 }
             } else {
                 const newAddress = await Address.create(address);
-                if (!newAddress) {
-                    return res.status(400).json({ message: "Invalid address." });
-                }
                 hospital.address = newAddress._id;
             }
         }
 
-        
         if (contact) {
             hospital.contact = contact;
         }
 
-        if (departments !== undefined) {
+        if (departments && Array.isArray(departments)) {
             const newDepartmentIds = [];
 
             for (const dept of departments) {
-                const deptName = dept.name.toLowerCase().trim();
+                const deptName = dept.name?.toLowerCase()?.trim();
+                if (!deptName) {
+                    return res.status(400).json({ message: "Department name is required." });
+                }
 
                 const headDoctor = await Doctor.findById(dept.headDoctor);
                 if (!headDoctor) {
-                    return res.status(404).json({ message: `Head doctor with ID ${dept.headDoctor} not found` });
+                    return res.status(404).json({ message: `Head doctor with ID ${dept.headDoctor} not found.` });
                 }
 
                 const deptDoctorIds = [];
                 for (const docId of dept.doctors || []) {
-                    const doc = await Doctor.findById(docId);
-                    if (!doc) {
-                        return res.status(404).json({ message: `Doctor with ID ${docId} not found` });
+                    const doctor = await Doctor.findById(docId);
+                    if (!doctor) {
+                        return res.status(404).json({ message: `Doctor with ID ${docId} not found.` });
                     }
-                    deptDoctorIds.push(doc._id);
+                    deptDoctorIds.push(doctor._id);
                 }
 
                 if (!deptDoctorIds.includes(headDoctor._id)) {
-                    deptDoctorIds.push(headDoctor._id);
+                    deptDoctorIds.push(headDoctor._id); 
                 }
 
+                // Create the department
                 const newDept = await Department.create({
                     name: deptName,
                     headDoctor: headDoctor._id,
                     doctors: deptDoctorIds,
-                    hospital: hospital._id
+                    hospital: hospital._id,
                 });
 
                 newDepartmentIds.push(newDept._id);
@@ -256,36 +256,56 @@ const updateHospital = async (req, res) => {
         const updatedHospital = await hospital.save();
 
         res.status(200).json({
-            message: "Hospital updated successfully",
-            data: updatedHospital
+            message: "Hospital updated successfully.",
+            data: updatedHospital,
         });
-
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 };
-
 
  
 const deleteHospital = async (req, res) => {
     try {
         const { id } = req.params;
 
+     
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({ message: "Invalid Hospital ID." });
         }
 
-        const hospital = await Hospital.findById(id).populate("departments");
+        const hospital = await Hospital.findById(id);
         if (!hospital) {
-            return res.status(404).json({ message: "Hospital not found" });
+            return res.status(404).json({ message: "Hospital not found." });
         }
 
+        // Delete associated departments in batch
         if (hospital.departments && hospital.departments.length > 0) {
-            for (const dept of hospital.departments) {
-                await Department.findByIdAndDelete(dept._id);
-            }
+            await Department.deleteMany({ _id: { $in: hospital.departments } });
         }
 
+        // Delete associated appointments and clean up references
+        const associatedAppointments = await Appointment.find({ hospitalId: id });
+        if (associatedAppointments.length > 0) {
+            const appointmentIds = associatedAppointments.map(app => app._id.toString());
+
+            // Remove appointments from associated patients in batch
+            await Patient.updateMany(
+                { appointments: { $in: appointmentIds } },  
+                { $pull: { appointments: { $in: appointmentIds } } }  
+            );
+
+            // Remove appointments from associated doctors in batch
+            await Doctor.updateMany(
+                { appointments: { $in: appointmentIds } },  
+                { $pull: { appointments: { $in: appointmentIds } } }  
+            );
+
+            // Delete the appointments
+            await Appointment.deleteMany({ hospitalId: id });
+        }
+
+        // Remove hospital reference from associated doctors
         if (hospital.doctors && hospital.doctors.length > 0) {
             await Doctor.updateMany(
                 { _id: { $in: hospital.doctors } },
@@ -293,13 +313,24 @@ const deleteHospital = async (req, res) => {
             );
         }
 
-        await Hospital.findByIdAndDelete(id);
+        // Remove hospital reference from associated patients
+        if (hospital.patients && hospital.patients.length > 0) {
+            await Patient.updateMany(
+                { _id: { $in: hospital.patients } },
+                { $unset: { hospitalId: "" } }
+            );
+        }
 
+        // Check and delete the hospital's address 
         if (hospital.address) {
             await Address.findByIdAndDelete(hospital.address);
         }
 
-        res.status(200).json({ message: "Hospital and associated data deleted successfully" });
+        await Hospital.findByIdAndDelete(id);
+
+        res.status(200).json({
+            message: "Hospital, associated departments, address, appointments, and references in doctors and patients successfully deleted."
+        });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

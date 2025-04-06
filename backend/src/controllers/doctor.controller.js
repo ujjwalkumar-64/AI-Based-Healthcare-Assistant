@@ -2,6 +2,9 @@ import mongoose from 'mongoose';
 import { Doctor } from "../models/doctor.model.js";
 import { Address } from "../models/address.model.js";
 import { Hospital } from '../models/hospital.model.js';
+import { Appointment } from '../models/appointment.model.js';
+import { Department } from '../models/department.model.js';
+import { Patient } from '../models/patient.model.js';
 
 const registerDoctor = async (req, res) => {
     try {
@@ -114,6 +117,28 @@ const getMyDoctorProfile = async (req, res) => {
     }
 };
 
+const getMyPatientList = async (req, res) => {
+    try {   
+        const userId = req.user._id;
+
+        
+        const doctor = await Doctor.findOne({userId}).populate("patients");
+        if (!doctor) {
+            return res.status(404).json({ message: "Doctor not found" });
+        }
+        if (doctor.userId.toString() !== userId.toString()) {
+            return res.status(403).json({ message: "Not authorized to view" });
+        }
+        const patients = doctor.patients;
+        if (!patients || patients.length === 0) {
+            return res.status(404).json({ message: "No patients found for this doctor" });
+        }
+        res.status(200).json({ message: "Patients list fetched successfully", data: patients });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
   const updateDoctor = async (req, res) => {
     try {
         const { specialization, medicalLicense, experienceYears, availability, address,rating } = req.body;
@@ -168,41 +193,73 @@ const getMyDoctorProfile = async (req, res) => {
     }
 };
  
- const deleteDoctor = async (req, res) => {
+const deleteDoctor = async (req, res) => {
     try {
-        const { id } = req.params;
-        
-        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        const { id } = req.params; 
+        if (!mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({ message: "Invalid doctor ID." });
         }
 
-        const doctor = await Doctor.findById(req.params.id);
+        const doctor = await Doctor.findById(id);
         if (!doctor) {
-            return res.status(404).json({ message: "Doctor not found" });
-        }
-
- 
-        if (doctor.userId.toString() !== req.user._id.toString()) {
-            return res.status(403).json({ message: "Not authorized to delete this profile" });
-        }
-
-        if (!doctor.address) {
-            return res.status(404).json({ message: "doctor address not found." });
+            return res.status(404).json({ message: "Doctor not found." });
         }
 
 
+        // Check and delete associated address (if exists)
+        if (doctor.address) {
+            const deletedAddress = await Address.findByIdAndDelete(doctor.address);
+            if (!deletedAddress) {
+                return res.status(400).json({ message: "Invalid address ID. Address could not be found." });
+            }
+        }
+
+        // Remove doctor's appointments
+        if (doctor.appointments.length > 0) {
+            const appointmentIds = doctor.appointments.map(app => app.toString());
+            
+            // Remove appointments from patients' lists
+            const patientsWithAppointments = await Patient.find({ appointments: { $in: appointmentIds } });
+            for (const patient of patientsWithAppointments) {
+                patient.appointments = patient.appointments.filter(appId => !appointmentIds.includes(appId.toString()));
+                await patient.save();
+            }
+
+            // Delete the appointments
+            await Appointment.deleteMany({ _id: { $in: appointmentIds } });
+        }
+
+        // Remove doctor from departments
+        const departments = await Department.find({ doctors: id });
+        for (const department of departments) {
+            department.doctors = department.doctors.filter(docId => docId.toString() !== id);
+            if (department.headDoctor.toString() === id) {
+                department.headDoctor = undefined; // Clear headDoctor if this doctor is the head
+            }
+            await department.save();
+        }
+
+        // Remove doctor from hospitals
+        const hospitals = await Hospital.find({ doctors: id });
+        for (const hospital of hospitals) {
+            hospital.doctors = hospital.doctors.filter(docId => docId.toString() !== id);
+            await hospital.save();
+        }
+
+        // Delete the doctor
         await Doctor.findByIdAndDelete(id);
-        
-         const deletedAddress = await Address.findByIdAndDelete(doctor.address);
-         if (!deletedAddress) {
-             return res.status(400).json({ message: "Invalid address ID. Address could not be found." });
-         }
 
-        res.status(200).json({ message: "Doctor deleted successfully" });
+
+        res.status(200).json({
+            message: "Doctor, associated address, appointments, references in hospitals, departments, and patients successfully deleted."
+        });
     } catch (error) {
+
         res.status(500).json({ message: error.message });
     }
 };
+
+
 
 
 export {
@@ -211,5 +268,6 @@ export {
     getDoctorById,
     getMyDoctorProfile,
     updateDoctor,
-    deleteDoctor
+    deleteDoctor,
+    getMyPatientList
 }
